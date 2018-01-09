@@ -43,10 +43,11 @@ class UserRoute(
   }
 
   def result[T: ToResponseMarshaller, E <: Coproduct, P <: Poly](p: P)(r: EitherT[Future, E, T])
-                                                                (implicit f: Folder.Aux[P, E, Route]): Route = onSuccess(r.run.map(_.toEither)) {
-    case Left(e) => f(e)
-    case Right(r) => complete(r)
-  }
+                                                                (implicit f: Folder.Aux[P, E, Route]): Route =
+    onSuccess(r.run.map(_.toEither)) {
+      case Left(e) => f(e)
+      case Right(r) => complete(r)
+    }
 
   implicit class EitherOps[L <: Coproduct, R](val e: Future[Either[L, R]]) {
     def deep[E <: Coproduct](implicit b: Basis[E, L]): EitherT[Future, E, R] = EitherT[Future, E, R]{
@@ -58,7 +59,7 @@ class UserRoute(
 
   type UserError = adjoin.Out
 
-  def route: Route = 
+  def route: Route =
     (get & path("user" / "data") & parameter('emailAddress.as[String])) { emailAddress =>
       result(errorHandler){
         for {
