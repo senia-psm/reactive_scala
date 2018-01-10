@@ -22,7 +22,7 @@ class UserRoute(
                (implicit ec: ExecutionContext) {
 
   def route: Route =
-    (get & path("user" / "data") & parameter('emailAddress.as[String])) { emailAddress =>
+    (get & path("user" / "data") & parameter('emailAddress)) { emailAddress =>
       complete(
         for {
          user <- userService.byEmailAddress(emailAddress)
@@ -33,7 +33,7 @@ class UserRoute(
     }
 
   def routeAsync: Route =
-    (get & path("user" / "data") & parameter('emailAddress.as[String])) { emailAddress =>
+    (get & path("user" / "data") & parameter('emailAddress)) { emailAddress =>
       complete{async{
         val user = await(userService.byEmailAddress(emailAddress))
         val tickets = await(ticketService.byUserId(user.id))
@@ -44,7 +44,7 @@ class UserRoute(
     }
 
   def routeEach: Route =
-    (get & path("user" / "data") & parameter('emailAddress.as[String])) { emailAddress =>
+    (get & path("user" / "data") & parameter('emailAddress)) { emailAddress =>
       complete{monadic[Future]{
         val user = userService.byEmailAddress(emailAddress).each
         val tickets = ticketService.byUserId(user.id).each

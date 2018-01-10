@@ -18,7 +18,7 @@ class UserRoute(
                (implicit ec: ExecutionContext) {
 
   def route: Route =
-    (get & path("user" / "data") & parameter('emailAddress.as[String])) { emailAddress =>
+    (get & path("user" / "data") & parameter('emailAddress)) { emailAddress =>
       complete{
         val user = userService.byEmailAddress(emailAddress)
         val tickets = ticketService.byUserId(user.id)

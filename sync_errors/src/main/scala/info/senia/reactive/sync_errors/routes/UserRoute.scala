@@ -28,8 +28,8 @@ class UserRoute(
                (implicit ec: ExecutionContext) {
 
   def route: Route =
-    (get & path("user" / "data") & parameter('emailAddress.as[String])) { emailAddress =>
-      result{
+    (get & path("user" / "data") & parameter('emailAddress)) { emailAddress =>
+      result(handleErrors){
         for {
          user <- userService.byEmailAddress(emailAddress).left.map(UserServiceRouteError)
          tickets <- ticketService.byUserId(user.id).left.map(TicketServiceRouteError)
@@ -41,8 +41,8 @@ class UserRoute(
   type Result[T] = Either[RouteError, T]
   import scalaz.std.either._
   def routeEach: Route =
-    (get & path("user" / "data") & parameter('emailAddress.as[String])) { emailAddress =>
-      result{monadic[Result]{
+    (get & path("user" / "data") & parameter('emailAddress)) { emailAddress =>
+      result(handleErrors){monadic[Result]{
         val user = userService.byEmailAddress(emailAddress).left.map(UserServiceRouteError).each
         val tickets = ticketService.byUserId(user.id).left.map(TicketServiceRouteError).each
         val bonuses = marketingService.getBonuses(tickets).left.map(MarketingServiceRouteError).each
@@ -53,11 +53,16 @@ class UserRoute(
 }
 
 object Routes {
-  def result[T: ToResponseMarshaller](r: Either[RouteError, T]): Route = r match {
-    case Left(UserServiceRouteError(UserNotFound(address))) =>
+  def handleErrors(e: RouteError): Route = e match {
+    case UserServiceRouteError(UserNotFound(address)) =>
       complete(StatusCodes.NotFound -> s"Can't find used by email address `$address'")
-    case Left(UserServiceRouteError(_) | TicketServiceRouteError(_) | MarketingServiceRouteError(_)) =>
+    case UserServiceRouteError(_) | TicketServiceRouteError(_) | MarketingServiceRouteError(_) =>
       complete(StatusCodes.InternalServerError)
+  }
+
+  def result[T: ToResponseMarshaller](handler: RouteError => Route)
+                                     (r: Either[RouteError, T]): Route = r match {
+    case Left(e) => handler(e)
     case Right(r) => complete(r)
   }
 }

@@ -31,7 +31,7 @@ class UserRoute(
                (implicit ec: ExecutionContext) {
 
   def route: Route =
-    (get & path("user" / "data") & parameter('emailAddress.as[String])) { emailAddress =>
+    (get & path("user" / "data") & parameter('emailAddress)) { emailAddress =>
       result(handleError){
         for {
          user <- userService.byEmailAddress(emailAddress).deep(UserServiceRouteError)
@@ -43,7 +43,7 @@ class UserRoute(
 
   type Result[T] = EitherT[Future, RouteError, T]
   def routeEach: Route =
-    (get & path("user" / "data") & parameter('emailAddress.as[String])) { emailAddress =>
+    (get & path("user" / "data") & parameter('emailAddress)) { emailAddress =>
       result(handleError){monadic[Result]{
         val user = userService.byEmailAddress(emailAddress).deep(UserServiceRouteError).each
         val tickets = ticketService.byUserId(user.id).deep(TicketServiceRouteError).each

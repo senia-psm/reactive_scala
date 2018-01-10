@@ -36,7 +36,7 @@ class UserRoute(
   type UserError = adjoin.Out
 
   def route: Route =
-    (get & path("user" / "data") & parameter('emailAddress.as[String])) { emailAddress =>
+    (get & path("user" / "data") & parameter('emailAddress)) { emailAddress =>
       result(errorHandler){
         for {
          user <- userService.byEmailAddress(emailAddress).deep[UserError]
