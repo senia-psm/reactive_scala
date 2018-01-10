@@ -1,4 +1,4 @@
-package info.senia.reactive.async_errors
+package info.senia.reactive.async_errors_coproduct
 
 import scala.concurrent.Future
 

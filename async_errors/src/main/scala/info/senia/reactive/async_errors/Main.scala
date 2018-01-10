@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
 import info.senia.reactive.async_errors.routes.UserRoute
-import info.senia.reactive.async_errors.services.{MarketingService, TicketService, UserService}
+import info.senia.reactive.async_errors.services.impl.{MarketingServiceImpl, TicketServiceImpl, UserServiceImpl}
 
 object Main {
 
@@ -15,9 +15,9 @@ object Main {
 
     class DI {
       import com.softwaremill.macwire._
-      lazy val ticketService = wire[TicketService]
-      lazy val userService = wire[UserService]
-      lazy val marketingModule = wire[MarketingService]
+      lazy val ticketService = wire[TicketServiceImpl]
+      lazy val userService = wire[UserServiceImpl]
+      lazy val marketingModule = wire[MarketingServiceImpl]
       lazy val userRoute = wire[UserRoute]
     }
 

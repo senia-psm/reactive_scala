@@ -1,8 +1,8 @@
-package info.senia.reactive.async_errors.routes
+package info.senia.reactive.async_errors_coproduct.routes
 
 import akka.http.scaladsl.marshalling.ToResponseMarshaller
 import akka.http.scaladsl.model.StatusCodes
-import info.senia.reactive.async_errors.services._
+import info.senia.reactive.async_errors_coproduct.services._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
@@ -10,9 +10,9 @@ import io.circe.generic.auto._
 import io.circe.java8.time._
 import info.senia.reactive.model.{Bonus, User}
 import com.thoughtworks.each.Monadic._
-import info.senia.reactive.async_errors.services.MarketingService.MarketingServiceError
-import info.senia.reactive.async_errors.services.TicketService.TicketServiceError
-import info.senia.reactive.async_errors.services.UserService.UserServiceError
+import info.senia.reactive.async_errors_coproduct.services.MarketingService.MarketingServiceError
+import info.senia.reactive.async_errors_coproduct.services.TicketService.TicketServiceError
+import info.senia.reactive.async_errors_coproduct.services.UserService.UserServiceError
 import shapeless.ops.adjoin.Adjoin
 import shapeless.{:+:, CNil, Coproduct, Poly, Poly1}
 import shapeless.ops.coproduct.{Basis, Folder}
@@ -25,9 +25,9 @@ import scalaz.{EitherT, \/}
 case class UserData(user: User, bonuses: Seq[Bonus])
 
 class UserRoute(
-    userService: UserService,
-    ticketService: TicketService,
-    marketingService: MarketingService)
+                 userService: UserService,
+                 ticketService: TicketService,
+                 marketingService: MarketingService)
                (implicit ec: ExecutionContext) {
 
   object errorHandler extends Poly1 {
