@@ -12,6 +12,7 @@ import info.senia.reactive.model.{Bonus, User}
 import com.thoughtworks.each.Monadic._
 
 import scala.concurrent.ExecutionContext
+import Routes._
 
 case class UserData(user: User, bonuses: Seq[Bonus])
 sealed trait RouteError
@@ -25,14 +26,6 @@ class UserRoute(
     ticketService: TicketService,
     marketingService: MarketingService)
                (implicit ec: ExecutionContext) {
-
-  def result[T: ToResponseMarshaller](r: Either[RouteError, T]): Route = r match {
-    case Left(UserServiceRouteError(UserNotFound(address))) =>
-      complete(StatusCodes.NotFound -> s"Can't find used by email address `$address'")
-    case Left(UserServiceRouteError(_) | TicketServiceRouteError(_) | MarketingServiceRouteError(_)) =>
-      complete(StatusCodes.InternalServerError)
-    case Right(r) => complete(r)
-  }
 
   def route: Route =
     (get & path("user" / "data") & parameter('emailAddress.as[String])) { emailAddress =>
@@ -57,4 +50,14 @@ class UserRoute(
         UserData(user, bonuses)
       }}
     }
+}
+
+object Routes {
+  def result[T: ToResponseMarshaller](r: Either[RouteError, T]): Route = r match {
+    case Left(UserServiceRouteError(UserNotFound(address))) =>
+      complete(StatusCodes.NotFound -> s"Can't find used by email address `$address'")
+    case Left(UserServiceRouteError(_) | TicketServiceRouteError(_) | MarketingServiceRouteError(_)) =>
+      complete(StatusCodes.InternalServerError)
+    case Right(r) => complete(r)
+  }
 }

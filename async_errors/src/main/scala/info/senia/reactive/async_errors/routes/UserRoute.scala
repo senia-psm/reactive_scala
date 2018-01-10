@@ -15,6 +15,7 @@ import scalaz.std.either._
 import scalaz.std.scalaFuture._
 import scala.concurrent.{ExecutionContext, Future}
 import scalaz.{EitherT, \/}
+import Routes._
 
 case class UserData(user: User, bonuses: Seq[Bonus])
 sealed trait RouteError
@@ -29,23 +30,9 @@ class UserRoute(
     marketingService: MarketingService)
                (implicit ec: ExecutionContext) {
 
-  def result[T: ToResponseMarshaller](r: EitherT[Future, RouteError, T]): Route = onSuccess(r.run.map(_.toEither)) {
-    case Left(UserServiceRouteError(UserNotFound(address))) =>
-      complete(StatusCodes.NotFound -> s"Can't find used by email address `$address'")
-    case Left(UserServiceRouteError(_) | TicketServiceRouteError(_) | MarketingServiceRouteError(_)) =>
-      complete(StatusCodes.InternalServerError)
-    case Right(r) => complete(r)
-  }
-
-  implicit class EitherOps[L, R](val e: Future[Either[L, R]]) {
-    def deep(leftMapper: L => RouteError): EitherT[Future, RouteError, R] = EitherT[Future, RouteError, R]{
-      e.map(_.left.map(leftMapper)).map(\/.fromEither)
-    }
-  }
-
   def route: Route =
     (get & path("user" / "data") & parameter('emailAddress.as[String])) { emailAddress =>
-      result{
+      result(handleError){
         for {
          user <- userService.byEmailAddress(emailAddress).deep(UserServiceRouteError)
          tickets <- ticketService.byUserId(user.id).deep(TicketServiceRouteError)
@@ -57,7 +44,7 @@ class UserRoute(
   type Result[T] = EitherT[Future, RouteError, T]
   def routeEach: Route =
     (get & path("user" / "data") & parameter('emailAddress.as[String])) { emailAddress =>
-      result{monadic[Result]{
+      result(handleError){monadic[Result]{
         val user = userService.byEmailAddress(emailAddress).deep(UserServiceRouteError).each
         val tickets = ticketService.byUserId(user.id).deep(TicketServiceRouteError).each
         val bonuses = marketingService.getBonuses(tickets).deep(MarketingServiceRouteError).each
@@ -65,4 +52,27 @@ class UserRoute(
         UserData(user, bonuses)
       }}
     }
+}
+
+object Routes {
+  def handleError(e: RouteError): Route = e match {
+    case UserServiceRouteError(UserNotFound(address)) =>
+      complete(StatusCodes.NotFound -> s"Can't find used by email address `$address'")
+    case UserServiceRouteError(_) | TicketServiceRouteError(_) | MarketingServiceRouteError(_) =>
+      complete(StatusCodes.InternalServerError)
+  }
+
+  def result[T: ToResponseMarshaller](errorHandler: RouteError => Route)(r: EitherT[Future, RouteError, T])
+                                     (implicit ec: ExecutionContext): Route =
+    onSuccess(r.run.map(_.toEither)) {
+      case Left(e) => errorHandler(e)
+      case Right(r) => complete(r)
+    }
+
+  implicit class EitherOps[L, R](val e: Future[Either[L, R]]) {
+    def deep(leftMapper: L => RouteError)
+            (implicit ec: ExecutionContext): EitherT[Future, RouteError, R] = EitherT[Future, RouteError, R]{
+      e.map(_.left.map(leftMapper)).map(\/.fromEither)
+    }
+  }
 }
