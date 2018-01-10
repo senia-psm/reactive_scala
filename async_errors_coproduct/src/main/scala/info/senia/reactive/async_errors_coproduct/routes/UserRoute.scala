@@ -4,7 +4,7 @@ import akka.http.scaladsl.marshalling.ToResponseMarshaller
 import akka.http.scaladsl.model.StatusCodes
 import info.senia.reactive.async_errors_coproduct.services._
 import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.{Route, StandardRoute}
+import akka.http.scaladsl.server.Route
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
 import io.circe.generic.auto._
 import io.circe.java8.time._
@@ -48,30 +48,40 @@ class UserRoute(
 }
 
 object Routes {
-  object errorHandler extends Poly1 {
+
+  object errorHandler extends TicketServiceHandler with UserServiceHandler
+
+  trait BaseHandler extends Poly1 {
     type At[T] = Case.Aux[T, Route]
-    implicit def atTicketUser: At[TicketService.UserNotFound] = at{ e =>
+  }
+
+  trait TicketServiceHandler extends BaseHandler {
+    implicit val atTicketUser: At[TicketService.UserNotFound] = at{ e =>
       complete(StatusCodes.NotFound -> s"Can't find user with id ${e.userId}")
     }
-    implicit def atUser: At[UserService.UserNotFound] = at{ e =>
+  }
+
+  trait UserServiceHandler extends BaseHandler {
+    implicit val atUser: At[UserService.UserNotFound] = at{ e =>
       complete(StatusCodes.NotFound -> s"Can't find user with email address ${e.emailAddress}")
     }
-    implicit def atAnother: At[UserService.AnotherError] = at{ _ =>
+    implicit val atAnother: At[UserService.AnotherError] = at{ _ =>
       complete(StatusCodes.InternalServerError)
     }
   }
 
-  def result[T: ToResponseMarshaller, E <: Coproduct, P <: Poly](p: P)(r: EitherT[Future, E, T])
-                                                                (implicit f: Folder.Aux[P, E, Route],
+  def result[T: ToResponseMarshaller, E <: Coproduct, P <: Poly](errorHandler: P)
+                                                                (r: EitherT[Future, E, T])
+                                                                (implicit f: Folder.Aux[errorHandler.type, E, Route],
                                                                  ec: ExecutionContext): Route =
     onSuccess(r.run.map(_.toEither)) {
-      case Left(e) => f(e)
+      case Left(e) => e.fold(errorHandler)
       case Right(r) => complete(r)
     }
 
   implicit class EitherOps[L <: Coproduct, R](val e: Future[Either[L, R]]) extends AnyVal {
     def deep[E <: Coproduct](implicit b: Basis[E, L], ec: ExecutionContext): EitherT[Future, E, R] = EitherT[Future, E, R]{
-      e.map(_.left.map(l => b.inverse(Right(l)))).map(\/.fromEither)
+      e.map(_.left.map(_.embed[E])).map(\/.fromEither)
     }
   }
 }
