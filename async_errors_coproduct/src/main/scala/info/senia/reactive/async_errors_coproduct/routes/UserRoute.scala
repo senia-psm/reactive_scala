@@ -49,14 +49,14 @@ class UserRoute(
 
 object Routes {
   object errorHandler extends Poly1 {
-    type ==>[A, B] = Case.Aux[A, B]
-    implicit def atTicketUser: TicketService.UserNotFound ==> Route = at{ e =>
+    type At[T] = Case.Aux[T, Route]
+    implicit def atTicketUser: At[TicketService.UserNotFound] = at{ e =>
       complete(StatusCodes.NotFound -> s"Can't find user with id ${e.userId}")
     }
-    implicit def atUser: UserService.UserNotFound ==> Route = at{ e =>
+    implicit def atUser: At[UserService.UserNotFound] = at{ e =>
       complete(StatusCodes.NotFound -> s"Can't find user with email address ${e.emailAddress}")
     }
-    implicit def atAnother: UserService.AnotherError ==> Route = at{ _ =>
+    implicit def atAnother: At[UserService.AnotherError] = at{ _ =>
       complete(StatusCodes.InternalServerError)
     }
   }
